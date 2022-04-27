@@ -50,7 +50,7 @@ interface CEther {
 
   function redeemUnderlying(uint) external returns (uint);
 
-  function borrow() external payable;
+  function borrow(uint) external returns (uint);
 
   function borrowBalanceCurrent(address) external returns (uint);
 

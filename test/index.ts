@@ -1,37 +1,46 @@
 import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import hre, { ethers } from "hardhat";
-import { CompoundShort, IERC20, CErc20, CEther } from "../typechain"
+import hre, { ethers, network } from "hardhat";
+import { CompoundShort, IERC20, CErc20, FakePriceFeed } from "../typechain"
+import { BigNumberish } from "ethers";
 const BigNumber = ethers.BigNumber
 
-const cETHAddress = '0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5'
+const cUNIAddress = '0x35a18000230da775cac24873d00ff85bccded550'
 const cUSDCAddress = '0x39aa39c021dfbae8fac545936693ac917d5e7563'
 
-const wethAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+const uniAddress = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984'
 const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
 
-const decimals = 18; // decimals of the token we're borrowing, which is ETH
+const bigUNIHolder = '0x2ec96c9af82ddd650c0776cb0da93beaa7ce2a10' // this address has a ton of UNI as of block 14667344
 
-const ONE_MILLION_USDC = 1_000_000 * 10e6
+const decimals = 18; // decimals of the token we're borrowing, which is UNI
+
+const ONE_MILLION_USDC = 1_000_000 * 1e6
 const eighteenZeros = BigNumber.from(10).pow(18)
 const sixZeros = BigNumber.from(10).pow(6)
 const eightZeros = BigNumber.from(10).pow(8)
 
-describe("Compound ETH Short", function () {
-  let compoundShort: CompoundShort;
-  let cUSDC: CErc20;
-  let cETH: CEther;
-  let usdc: IERC20
-  let alice: SignerWithAddress
+const priceFeedAddress = '0x65c816077C29b557BEE980ae3cC2dCE80204A0C5'
+let fakePriceFeed: FakePriceFeed
 
+let compoundShort: CompoundShort;
+let cUSDC: CErc20;
+let cUNI: CErc20;
+let usdc: IERC20
+let uni: IERC20
+let alice: SignerWithAddress
+
+describe("Compound ETH Short", function () {
   this.beforeEach(async () => {
     [alice] = await ethers.getSigners()
     const shortFactory = await ethers.getContractFactory("CompoundShort")
-    compoundShort = await shortFactory.deploy(cUSDCAddress, cETHAddress, usdcAddress, wethAddress, decimals)
+    compoundShort = await shortFactory.deploy(cUSDCAddress, cUNIAddress, usdcAddress, uniAddress, decimals)
 
     cUSDC = await ethers.getContractAt("CErc20", cUSDCAddress)
-    cETH = await ethers.getContractAt("CEther", cETHAddress)
+    cUNI = await ethers.getContractAt("CErc20", cUNIAddress)
     usdc = await ethers.getContractAt("IERC20", usdcAddress)
+    uni = await ethers.getContractAt("IERC20", uniAddress)
+    fakePriceFeed = await ethers.getContractAt("FakePriceFeed", priceFeedAddress)
 
   })
   it("Should short UNI", async function () {
@@ -40,7 +49,7 @@ describe("Compound ETH Short", function () {
     // first mint ourselves 1_000_000 USDC
     await mintUSDC(ONE_MILLION_USDC)
 
-    console.log("ETH: ", await (await alice.getBalance()).div(eighteenZeros).toString())
+    console.log("UNI: ", await (await uni.balanceOf(alice.address)).div(eighteenZeros).toString())
     console.log("USDC: ", await (await usdc.balanceOf(alice.address)).div(sixZeros).toString())
     console.log("cUSDC: ", await (await cUSDC.balanceOf(compoundShort.address)).div(eightZeros).toString())
 
@@ -48,15 +57,25 @@ describe("Compound ETH Short", function () {
     await usdc.approve(compoundShort.address, ONE_MILLION_USDC)
     await compoundShort.supply(ONE_MILLION_USDC)  
     
-    console.log("ETH: ", await (await alice.getBalance()).div(eighteenZeros).toString())
+    console.log("UNI: ", await (await uni.balanceOf(alice.address)).div(eighteenZeros).toString())
     console.log("USDC: ", await (await usdc.balanceOf(alice.address)).div(sixZeros).toString())
     console.log("cUSDC: ", await (await cUSDC.balanceOf(compoundShort.address)).div(eightZeros).toString())
 
     // short ETH
     const borrowAmount = await compoundShort.getBorrowAmount()
+    await compoundShort.short(borrowAmount)
 
-    await compoundShort.short({value: borrowAmount})
+    // fake the decrease the price of UNI, so we can profit from the short.
+    // We do this by getting a bunch of UNI from a large holder, and then selling it
+    const oneMillionUNI = BigNumber.from(1e6).mul(eighteenZeros)
+    await sendUNI(alice.address, oneMillionUNI)
+    console.log("UNI: ", await (await uni.balanceOf(alice.address)).div(eighteenZeros).toString())
+    await uni.approve(compoundShort.address, oneMillionUNI)
+    await lowerUNIPrice(BigNumber.from(7).mul(eighteenZeros))
 
+    console.log(await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).toString())
+
+    await compoundShort.repayBorrow()
   });
 });
 
@@ -103,4 +122,29 @@ const mintUSDC = async (amountOfUSDC: number) => {
 
   // finally, mint the 1 million USDC to Alice
   await usdc.connect(impersonatedSigner).mint(alice.address, amountOfUSDC);
+}
+
+const sendUNI = async (recipient: string, amount: BigNumberish) => {
+  // Impersonate the UNI Holder so we can send their funds to the recipient
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [bigUNIHolder],
+  });
+
+  // setup all the contract state we'll need
+  const impersonatedSigner: SignerWithAddress = await ethers.getSigner(bigUNIHolder);
+
+  await uni.connect(impersonatedSigner).transfer(recipient, amount)
+}
+
+const lowerUNIPrice = async (newAmount: BigNumberish) => {
+  const artifact = await hre.artifacts.readArtifact("FakePriceFeed")
+  await network.provider.send("hardhat_setCode", [
+      priceFeedAddress,
+      artifact.deployedBytecode,
+      // COMPOUND_PRICEFEED_CONTRACT
+  ]);
+
+  const fakePriceFeed = await ethers.getContractAt("FakePriceFeed", priceFeedAddress) as FakePriceFeed
+  await fakePriceFeed.setUnderlyingPrice(cUNI.address, newAmount)
 }
