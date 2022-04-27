@@ -16,9 +16,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/Compound.sol";
 import "./interfaces/Uniswap.sol";
 
+import "hardhat/console.sol";
+
 contract CompoundShort {
     CErc20 public cTokenCollateral;
-    CEth public cTokenBorrow;
+    CEther public cTokenBorrow;
+    IERC20 public tokenCollateral;
     IERC20 public tokenBorrow;
     uint256 public decimals;
 
@@ -34,11 +37,13 @@ contract CompoundShort {
     constructor(
         address _cTokenCollateral,
         address _cTokenBorrow,
+        address _tokenCollateral,
         address _tokenBorrow,
         uint256 _decimals
     ) {
         cTokenCollateral = CErc20(_cTokenCollateral);
-        cTokenBorrow = CEth(_cTokenBorrow);
+        cTokenBorrow = CEther(_cTokenBorrow);
+        tokenCollateral = IERC20(_tokenCollateral);
         tokenBorrow = IERC20(_tokenBorrow);
         decimals = _decimals;
 
@@ -51,13 +56,44 @@ contract CompoundShort {
 
     function supply(uint256 mintAmount) external payable {
         // supply liquidity to USDC so we can borrow ETH
-        cTokenCollateral.transferFrom(msg.sender, address(this), mintAmount);
-        cTokenCollateral.mint(mintAmount);
+        tokenCollateral.transferFrom(msg.sender, address(this), mintAmount);
+        tokenCollateral.approve(address(cTokenCollateral), mintAmount);
+        console.log("address(this) tokenCollateral: %s", tokenCollateral.balanceOf(address(this)));
+
+        uint256 err = cTokenCollateral.mint(mintAmount);
+        require(err == 0, "error in minting");
     }
 
-    function short() external {
-        // borrow ETH
+    // borrow ETH
+    function short() external payable {
+        console.log("cTokenBorrow address :%s", address(cTokenBorrow));
+        console.log("cTokenBorrow balance: %s", cTokenBorrow.balanceOf(address(this)));
+        console.log("cTokenBorrow supplyRatePerBlock: %s", cTokenBorrow.supplyRatePerBlock());
+
+        cTokenBorrow.borrow{value: msg.value}();
+        console.log("cTokenBorrow balance: %s", cTokenBorrow.balanceOf(address(this)));
+        console.log("balance of this: %s", address(this).balance);
+
+
         // sell ETH for USDC
+    }
+
+    function getBorrowAmount() view external returns (uint256) {
+        // Get the amount of liquidity we can borrow against (this number is non-zero)
+        // because we supplied USDC in the `.mint` up above in `.supply`.
+        // This value is in units of USD, scaled by 1e18
+        (uint256 err, uint256 liquidity, uint256 shortfall) = comptroller.getAccountLiquidity(address(this));
+        require(err == 0, "error in getAccountLiquidity");
+        require(liquidity > 0, "insufficient liquidity");
+        console.log("liquidity in units of USDC: %s", liquidity / 1e18);
+
+        // get the price of ETH, which we'll use to calculate the maximum we can borrow
+        uint256 price = priceFeed.getUnderlyingPrice(address(cTokenBorrow));
+        console.log("the underlying price of ETH is: %s", price / 1e18);
+
+        // the borrow amount is equal to the amount of ETH we could
+        uint256 borrowAmount = liquidity * 10**decimals / price;
+        return borrowAmount;
     }
 
     function lowerETHPrice() external {
@@ -78,7 +114,7 @@ contract CompoundShort {
 //     address _tokenBorrow,
 //     uint _decimals
 //   ) {
-//     cEth = CEth(_cEth);
+//     cEth = CEther(_cEth);
 //     cTokenBorrow = CErc20(_cTokenBorrow);
 //     tokenBorrow = IERC20(_tokenBorrow);
 //     decimals = _decimals;

@@ -26,6 +26,8 @@ interface CErc20 {
 
   function transferFrom(address src, address dst, uint amount) external returns (bool);
 
+  function transfer(address dst, uint amount) external returns (bool);
+
   function liquidateBorrow(
     address borrower,
     uint amount,
@@ -33,7 +35,7 @@ interface CErc20 {
   ) external returns (uint);
 }
 
-interface CEth {
+interface CEther {
   function balanceOf(address) external view returns (uint);
 
   function mint() external payable;
@@ -48,7 +50,7 @@ interface CEth {
 
   function redeemUnderlying(uint) external returns (uint);
 
-  function borrow(uint) external returns (uint);
+  function borrow() external payable;
 
   function borrowBalanceCurrent(address) external returns (uint);
 

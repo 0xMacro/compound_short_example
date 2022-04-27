@@ -1,7 +1,8 @@
 import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import hre, { ethers } from "hardhat";
-import { CompoundShort, IERC20, CErc20, CEth } from "../typechain"
+import { CompoundShort, IERC20, CErc20, CEther } from "../typechain"
+const BigNumber = ethers.BigNumber
 
 const cETHAddress = '0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5'
 const cUSDCAddress = '0x39aa39c021dfbae8fac545936693ac917d5e7563'
@@ -9,20 +10,52 @@ const cUSDCAddress = '0x39aa39c021dfbae8fac545936693ac917d5e7563'
 const wethAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
 const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
 
-const decimals = 18; // decimals of the token we're borrowing, which is UNI
+const decimals = 18; // decimals of the token we're borrowing, which is ETH
 
-describe("Compound UNI Short", function () {
+const ONE_MILLION_USDC = 1_000_000 * 10e6
+const eighteenZeros = BigNumber.from(10).pow(18)
+const sixZeros = BigNumber.from(10).pow(6)
+const eightZeros = BigNumber.from(10).pow(8)
+
+describe("Compound ETH Short", function () {
   let compoundShort: CompoundShort;
-  it("Should short UNI", async function () {
-    const shortFactory = await ethers.getContractFactory("CompoundShort")
-    compoundShort = await shortFactory.deploy(cUSDCAddress, cETHAddress, wethAddress, decimals)
+  let cUSDC: CErc20;
+  let cETH: CEther;
+  let usdc: IERC20
+  let alice: SignerWithAddress
 
-    // first mint ourselves a bunch of USDC
-    await mintUSDC(1_000_000 * 10e6)
+  this.beforeEach(async () => {
+    [alice] = await ethers.getSigners()
+    const shortFactory = await ethers.getContractFactory("CompoundShort")
+    compoundShort = await shortFactory.deploy(cUSDCAddress, cETHAddress, usdcAddress, wethAddress, decimals)
+
+    cUSDC = await ethers.getContractAt("CErc20", cUSDCAddress)
+    cETH = await ethers.getContractAt("CEther", cETHAddress)
+    usdc = await ethers.getContractAt("IERC20", usdcAddress)
+
+  })
+  it("Should short UNI", async function () {
+    
+
+    // first mint ourselves 1_000_000 USDC
+    await mintUSDC(ONE_MILLION_USDC)
+
+    console.log("ETH: ", await (await alice.getBalance()).div(eighteenZeros).toString())
+    console.log("USDC: ", await (await usdc.balanceOf(alice.address)).div(sixZeros).toString())
+    console.log("cUSDC: ", await (await cUSDC.balanceOf(compoundShort.address)).div(eightZeros).toString())
+
     // supply USDC
-    const usdc = await ethers.getContractAt("IERC20", usdcAddress)
+    await usdc.approve(compoundShort.address, ONE_MILLION_USDC)
+    await compoundShort.supply(ONE_MILLION_USDC)  
     
-    
+    console.log("ETH: ", await (await alice.getBalance()).div(eighteenZeros).toString())
+    console.log("USDC: ", await (await usdc.balanceOf(alice.address)).div(sixZeros).toString())
+    console.log("cUSDC: ", await (await cUSDC.balanceOf(compoundShort.address)).div(eightZeros).toString())
+
+    // short ETH
+    const borrowAmount = await compoundShort.getBorrowAmount()
+
+    await compoundShort.short({value: borrowAmount})
 
   });
 });
