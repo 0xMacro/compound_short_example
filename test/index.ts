@@ -49,17 +49,9 @@ describe("Compound ETH Short", function () {
     // first mint ourselves 1_000_000 USDC
     await mintUSDC(ONE_MILLION_USDC)
 
-    console.log("UNI: ", await (await uni.balanceOf(alice.address)).div(eighteenZeros).toString())
-    console.log("USDC: ", await (await usdc.balanceOf(alice.address)).div(sixZeros).toString())
-    console.log("cUSDC: ", await (await cUSDC.balanceOf(compoundShort.address)).div(eightZeros).toString())
-
     // supply USDC
     await usdc.approve(compoundShort.address, ONE_MILLION_USDC)
     await compoundShort.supply(ONE_MILLION_USDC)  
-    
-    console.log("UNI: ", await (await uni.balanceOf(alice.address)).div(eighteenZeros).toString())
-    console.log("USDC: ", await (await usdc.balanceOf(alice.address)).div(sixZeros).toString())
-    console.log("cUSDC: ", await (await cUSDC.balanceOf(compoundShort.address)).div(eightZeros).toString())
 
     // short ETH
     const borrowAmount = await compoundShort.getBorrowAmount()
@@ -69,11 +61,13 @@ describe("Compound ETH Short", function () {
     // We do this by getting a bunch of UNI from a large holder, and then selling it
     const oneMillionUNI = BigNumber.from(1e6).mul(eighteenZeros)
     await sendUNI(alice.address, oneMillionUNI)
-    console.log("UNI: ", await (await uni.balanceOf(alice.address)).div(eighteenZeros).toString())
     await uni.approve(compoundShort.address, oneMillionUNI)
-    await lowerUNIPrice(BigNumber.from(7).mul(eighteenZeros))
+    await compoundShort.lowerUNIPriceOnUniswap(oneMillionUNI)
+    console.log(`new Compound UNI Price: ${await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).div(eighteenZeros).toString()}`)
 
-    console.log(await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).toString())
+    await lowerUNIPriceOnChainlink(BigNumber.from(7).mul(eighteenZeros))
+
+    console.log(`new Compound UNI Price: ${await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).div(eighteenZeros).toString()}`)
 
     await compoundShort.repayBorrow()
   });
@@ -137,7 +131,7 @@ const sendUNI = async (recipient: string, amount: BigNumberish) => {
   await uni.connect(impersonatedSigner).transfer(recipient, amount)
 }
 
-const lowerUNIPrice = async (newAmount: BigNumberish) => {
+const lowerUNIPriceOnChainlink = async (newAmount: BigNumberish) => {
   const artifact = await hre.artifacts.readArtifact("FakePriceFeed")
   await network.provider.send("hardhat_setCode", [
       priceFeedAddress,
