@@ -92,7 +92,7 @@ contract CompoundShort {
         // immediately liquidated. So instead we'll borrow 3/4th's of this so we
         // have some wiggle room
 
-        uint256 borrowAmount = (borrowAmountLimit * 3) / 40;
+        uint256 borrowAmount = (borrowAmountLimit * 3) / 4;
         console.log("borrowAmount: %s", borrowAmount / 1e18);
 
         return borrowAmount;
@@ -175,7 +175,18 @@ contract CompoundShort {
         console.log("UNI balance of CompoundShort.sol: %s", tokenBorrow.balanceOf(address(this)) / 1e18);
 
         // repay the UNI we borrowed earlier
+        tokenBorrow.approve(address(cTokenBorrow), borrowed);
+        require(cTokenBorrow.repayBorrow(borrowed) == 0, "repay failed");
 
+        // redeem our cUSDC for USDC
+        uint cTokenBalance = cTokenCollateral.balanceOf(address(this));
+        console.log("cTokenBalance: %s", cTokenBalance);
+
+        uint256 err = cTokenCollateral.redeem(cTokenBalance);
+        console.log("redeem error: %s", err);
+        require(err == 0, "redeem failed");
+
+        // we started with 500 USDC and 0 UNI, we should have more than that now
     }
 
 

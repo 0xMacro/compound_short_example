@@ -15,10 +15,8 @@ const bigUNIHolder = '0x2ec96c9af82ddd650c0776cb0da93beaa7ce2a10' // this addres
 
 const decimals = 18; // decimals of the token we're borrowing, which is UNI
 
-const ONE_MILLION_USDC = 1_000_000 * 1e6
+const FIVE_HUNDRED_USDC = 500 * 1e6
 const eighteenZeros = BigNumber.from(10).pow(18)
-const sixZeros = BigNumber.from(10).pow(6)
-const eightZeros = BigNumber.from(10).pow(8)
 
 const priceFeedAddress = '0x65c816077C29b557BEE980ae3cC2dCE80204A0C5'
 let fakePriceFeed: FakePriceFeed
@@ -46,12 +44,12 @@ describe("Compound ETH Short", function () {
   it("Should short UNI", async function () {
     
 
-    // first mint ourselves 1_000_000 USDC
-    await mintUSDC(ONE_MILLION_USDC)
+    // first mint ourselves 500 USDC
+    await mintUSDC(FIVE_HUNDRED_USDC)
 
     // supply USDC
-    await usdc.approve(compoundShort.address, ONE_MILLION_USDC)
-    await compoundShort.supply(ONE_MILLION_USDC)  
+    await usdc.approve(compoundShort.address, FIVE_HUNDRED_USDC)
+    await compoundShort.supply(FIVE_HUNDRED_USDC)
 
     // short ETH
     const borrowAmount = await compoundShort.getBorrowAmount()
@@ -59,10 +57,10 @@ describe("Compound ETH Short", function () {
 
     // fake the decrease the price of UNI, so we can profit from the short.
     // We do this by getting a bunch of UNI from a large holder, and then selling it
-    const oneMillionUNI = BigNumber.from(1e6).mul(eighteenZeros)
-    await sendUNI(alice.address, oneMillionUNI)
-    await uni.approve(compoundShort.address, oneMillionUNI)
-    await compoundShort.lowerUNIPriceOnUniswap(oneMillionUNI)
+    const fiftyUNI = BigNumber.from(50).mul(eighteenZeros)
+    await sendUNI(alice.address, fiftyUNI)
+    await uni.approve(compoundShort.address, fiftyUNI)
+    await compoundShort.lowerUNIPriceOnUniswap(fiftyUNI)
     console.log(`new Compound UNI Price: ${await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).div(eighteenZeros).toString()}`)
 
     await lowerUNIPriceOnChainlink(BigNumber.from(7).mul(eighteenZeros))
@@ -111,10 +109,10 @@ const mintUSDC = async (amountOfUSDC: number) => {
   // to call configureMinter
   await masterMinter.connect(impersonatedSigner).configureController(ownerOfMasterMinter, ownerOfMasterMinter);
 
-  // allow the owner to mint 1_000_000 USDC
+  // allow the owner to mint USDC
   await masterMinter.connect(impersonatedSigner).configureMinter(amountOfUSDC);
 
-  // finally, mint the 1 million USDC to Alice
+  // finally, mint the USDC to Alice
   await usdc.connect(impersonatedSigner).mint(alice.address, amountOfUSDC);
 }
 
