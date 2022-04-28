@@ -26,14 +26,14 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.6.12"
+        version: "0.6.12",
       },
       {
         version: "0.4.24",
       },
       {
-        version: "0.8.4"
-      }
+        version: "0.8.4",
+      },
     ],
     overrides: {
       "contracts/FiatTokenV2_1.sol": {
@@ -41,8 +41,8 @@ const config: HardhatUserConfig = {
       },
       "contracts/MasterMinter.sol": {
         version: "0.4.24",
-      }
-    }
+      },
+    },
   },
   networks: {
     ropsten: {
@@ -54,9 +54,9 @@ const config: HardhatUserConfig = {
       chainId: 31337,
       forking: {
         url: process.env.MAINNET_RPC_URL!,
-        blockNumber: 14662711
+        blockNumber: 14662711,
       },
-      allowUnlimitedContractSize: true
+      allowUnlimitedContractSize: true,
     },
   },
   gasReporter: {

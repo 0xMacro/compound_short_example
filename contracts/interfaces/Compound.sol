@@ -2,95 +2,101 @@
 pragma solidity ^0.8;
 
 interface CErc20 {
-  function balanceOf(address) external view returns (uint);
+    function balanceOf(address) external view returns (uint256);
 
-  function mint(uint) external returns (uint);
+    function mint(uint256) external returns (uint256);
 
-  function exchangeRateCurrent() external returns (uint);
+    function exchangeRateCurrent() external returns (uint256);
 
-  function supplyRatePerBlock() external returns (uint);
+    function supplyRatePerBlock() external returns (uint256);
 
-  function balanceOfUnderlying(address) external returns (uint);
+    function balanceOfUnderlying(address) external returns (uint256);
 
-  function redeem(uint) external returns (uint);
+    function redeem(uint256) external returns (uint256);
 
-  function redeemUnderlying(uint) external returns (uint);
+    function redeemUnderlying(uint256) external returns (uint256);
 
-  function borrow(uint) external returns (uint);
+    function borrow(uint256) external returns (uint256);
 
-  function borrowBalanceCurrent(address) external returns (uint);
+    function borrowBalanceCurrent(address) external returns (uint256);
 
-  function borrowRatePerBlock() external view returns (uint);
+    function borrowRatePerBlock() external view returns (uint256);
 
-  function repayBorrow(uint) external returns (uint);
+    function repayBorrow(uint256) external returns (uint256);
 
-  function transferFrom(address src, address dst, uint amount) external returns (bool);
+    function transferFrom(
+        address src,
+        address dst,
+        uint256 amount
+    ) external returns (bool);
 
-  function transfer(address dst, uint amount) external returns (bool);
+    function transfer(address dst, uint256 amount) external returns (bool);
 
-  function liquidateBorrow(
-    address borrower,
-    uint amount,
-    address collateral
-  ) external returns (uint);
+    function liquidateBorrow(
+        address borrower,
+        uint256 amount,
+        address collateral
+    ) external returns (uint256);
 }
 
 interface CEther {
-  function balanceOf(address) external view returns (uint);
+    function balanceOf(address) external view returns (uint256);
 
-  function mint() external payable;
+    function mint() external payable;
 
-  function exchangeRateCurrent() external returns (uint);
+    function exchangeRateCurrent() external returns (uint256);
 
-  function supplyRatePerBlock() external returns (uint);
+    function supplyRatePerBlock() external returns (uint256);
 
-  function balanceOfUnderlying(address) external returns (uint);
+    function balanceOfUnderlying(address) external returns (uint256);
 
-  function redeem(uint) external returns (uint);
+    function redeem(uint256) external returns (uint256);
 
-  function redeemUnderlying(uint) external returns (uint);
+    function redeemUnderlying(uint256) external returns (uint256);
 
-  function borrow(uint) external returns (uint);
+    function borrow(uint256) external returns (uint256);
 
-  function borrowBalanceCurrent(address) external returns (uint);
+    function borrowBalanceCurrent(address) external returns (uint256);
 
-  function borrowRatePerBlock() external view returns (uint);
+    function borrowRatePerBlock() external view returns (uint256);
 
-  function repayBorrow() external payable;
+    function repayBorrow() external payable;
 }
 
 interface Comptroller {
-  function markets(address)
-    external
-    view
-    returns (
-      bool,
-      uint,
-      bool
-    );
+    function markets(address)
+        external
+        view
+        returns (
+            bool,
+            uint256,
+            bool
+        );
 
-  function enterMarkets(address[] calldata) external returns (uint[] memory);
+    function enterMarkets(address[] calldata)
+        external
+        returns (uint256[] memory);
 
-  function getAccountLiquidity(address)
-    external
-    view
-    returns (
-      uint,
-      uint,
-      uint
-    );
+    function getAccountLiquidity(address)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        );
 
-  function closeFactorMantissa() external view returns (uint);
+    function closeFactorMantissa() external view returns (uint256);
 
-  function liquidationIncentiveMantissa() external view returns (uint);
+    function liquidationIncentiveMantissa() external view returns (uint256);
 
-  function liquidateCalculateSeizeTokens(
-    address cTokenBorrowed,
-    address cTokenCollateral,
-    uint actualRepayAmount
-  ) external view returns (uint, uint);
+    function liquidateCalculateSeizeTokens(
+        address cTokenBorrowed,
+        address cTokenCollateral,
+        uint256 actualRepayAmount
+    ) external view returns (uint256, uint256);
 }
 
 interface PriceFeed {
-  function getUnderlyingPrice(address cToken) external view returns (uint);
+    function getUnderlyingPrice(address cToken) external view returns (uint256);
 }
