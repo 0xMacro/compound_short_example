@@ -28,6 +28,7 @@ let usdc: IERC20
 let uni: IERC20
 let alice: SignerWithAddress
 
+let ethBalanceAtConstruction = BigNumber.from(0)
 describe("Compound ETH Short", function () {
   this.beforeEach(async () => {
     [alice] = await ethers.getSigners()
@@ -39,7 +40,7 @@ describe("Compound ETH Short", function () {
     usdc = await ethers.getContractAt("IERC20", usdcAddress)
     uni = await ethers.getContractAt("IERC20", uniAddress)
     fakePriceFeed = await ethers.getContractAt("FakePriceFeed", priceFeedAddress)
-
+    ethBalanceAtConstruction = await alice.getBalance()
   })
   it("Should short UNI", async function () {
     
@@ -61,6 +62,7 @@ describe("Compound ETH Short", function () {
     await sendUNI(alice.address, fiftyUNI)
     await uni.approve(compoundShort.address, fiftyUNI)
     await compoundShort.lowerUNIPriceOnUniswap(fiftyUNI)
+    console.log(`new Compound UNI Price: ${await (await fakePriceFeed.getUnderlyingPrice(cUNI.address))}`)
     console.log(`new Compound UNI Price: ${await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).div(eighteenZeros).toString()}`)
 
     await lowerUNIPriceOnChainlink(BigNumber.from(7).mul(eighteenZeros))
@@ -68,6 +70,8 @@ describe("Compound ETH Short", function () {
     console.log(`new Compound UNI Price: ${await (await fakePriceFeed.getUnderlyingPrice(cUNI.address)).div(eighteenZeros).toString()}`)
 
     await compoundShort.repayBorrow()
+
+    console.log("Total ETH used for gas: ", (ethBalanceAtConstruction.sub(await alice.getBalance())).div(BigNumber.from("1000000000000000000")))
   });
 });
 
@@ -137,6 +141,5 @@ const lowerUNIPriceOnChainlink = async (newAmount: BigNumberish) => {
       // COMPOUND_PRICEFEED_CONTRACT
   ]);
 
-  const fakePriceFeed = await ethers.getContractAt("FakePriceFeed", priceFeedAddress) as FakePriceFeed
   await fakePriceFeed.setUnderlyingPrice(cUNI.address, newAmount)
 }

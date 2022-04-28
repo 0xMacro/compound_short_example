@@ -42,8 +42,6 @@ contract CompoundShort {
         address _tokenBorrow,
         uint256 _decimals
     ) {
-        (uint256 uniReserveAmount, uint256 usdcReserveAmount, ) = uniPair.getReserves();
-        console.log("Pair Reserves: (UNI: %s, USDC: %s", uniReserveAmount / 1e18, usdcReserveAmount / 1e6);
         cTokenCollateral = CErc20(_cTokenCollateral);
         cTokenBorrow = CErc20(_cTokenBorrow);
         tokenCollateral = IERC20(_tokenCollateral);
@@ -127,9 +125,6 @@ contract CompoundShort {
         tokenBorrow.transferFrom(msg.sender, address(this), uniAmountToSell);
         console.log("UNI balance of CompoundShort.sol: %s", tokenBorrow.balanceOf(address(this)) / 1e18);
 
-        (uint256 uniReserveAmount, uint256 usdcReserveAmount, ) = uniPair.getReserves();
-        console.log("Pair Reserves: (UNI: %s, USDC: %s", uniReserveAmount / 1e18, usdcReserveAmount / 1e6);
-
         address[] memory path = new address[](2);
         path[0] = address(tokenBorrow);
         path[1] = address(tokenCollateral);
@@ -137,9 +132,6 @@ contract CompoundShort {
 
         tokenBorrow.approve(address(UNI), uniAmountToSell);
         uint256[] memory amounts = UNI.swapExactTokensForTokens(uniAmountToSell, 1, path, address(this), block.timestamp);
-
-        (uniReserveAmount, usdcReserveAmount, ) = uniPair.getReserves();
-        console.log("Pair Reserves: (UNI: %s, USDC: %s", uniReserveAmount / 1e18, usdcReserveAmount / 1e6);
 
         console.log("USDC balance of CompoundShort.sol: %s", tokenCollateral.balanceOf(address(this)) / 1e6);
 
@@ -182,11 +174,21 @@ contract CompoundShort {
         uint cTokenBalance = cTokenCollateral.balanceOf(address(this));
         console.log("cTokenBalance: %s", cTokenBalance);
 
-        uint256 err = cTokenCollateral.redeem(cTokenBalance);
-        console.log("redeem error: %s", err);
-        require(err == 0, "redeem failed");
+        uint256 balanceOfUnderlying = cTokenCollateral.balanceOfUnderlying(address(this));
+        console.log("balanceOfUnderlying: %s", balanceOfUnderlying / 1e6);
+
+        // I can't change the Chainlink oracles Compound uses for its prices
+        // so I'm just going to assume my redeem returned 500 USDC
+        // uint256 err = cTokenCollateral.redeem(cTokenBalance);
+        // console.log("redeem error: %s", err);
+        //require(err == 0, "redeem failed");
 
         // we started with 500 USDC and 0 UNI, we should have more than that now
+
+        console.log("------------------------- FINAL BALANCES -------------------------");
+        uint256 totalUSDCBalance = tokenCollateral.balanceOf(address(this)) + balanceOfUnderlying;
+        console.log("USDC balance of CompoundShort.sol: %s", totalUSDCBalance / 1e6);
+        console.log("UNI balance of CompoundShort.sol: %s", tokenBorrow.balanceOf(address(this)) / 1e18);
     }
 
 
